@@ -1,0 +1,15 @@
+<div class="modal hide" id="myModal<?php echo $count; ?>">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">x</button>
+    <?php show_label('important','Select below the type of Evaluation'); ?>
+  </div>
+  <div class="modal-body">
+    
+      <select name='internal_external'>
+				<option value='I'>Internal</option>
+				<option value='E'>External</option>
+			</select>
+      <p><button type="submit" class="btn btn-mini btn-danger" >Go</button></p>
+   
+  </div>
+</div>

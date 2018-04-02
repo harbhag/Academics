@@ -1,0 +1,225 @@
+<?
+if(isset($_POST['strength_type']) && isset($_POST['internal_external_strength_show']))
+{
+	if ($_SESSION['usertype']=='coe')
+	{
+		$sql_branch_code="select branch_code from branch_code where branch_name='".$_POST['Branch_Name']."' AND course_code='".$_POST['course_code']."' ; ";
+		#echo $sql_branch_code;
+		$result_branch_code = mysql_query($sql_branch_code) or  die(mysql_error());
+		$branch_code_result = mysql_fetch_array($result_branch_code);
+		$branch_code =$branch_code_result['branch_code'];
+	#	echo $branch_code;
+	}
+	else
+	{
+		$branch_code=$_POST['Branch_Name'];
+	}
+
+	if($_POST['strength_type']=='Theory_Internal_Strength')
+	{
+		$sql_strength ="SELECT distinct concat(cc.course_name,'(',bc.branch_name,')') as Branch, `Sub_Sem` as Semester,Sub_PaperID as Paper_ID,`SUB_CODE`,`SUB_TITLE` as Subject_Title, `shift`,`aicte_rc`,`full_part_time`, count(Ed_RollNo) as Strength,`Regular_Reappear`,SUB_ID   FROM `ptu_subjects` ps,course_code cc,branch_code bc WHERE `SUB_TP` = 'T' AND `Ed_Int` = '1' and `received_status`='Y' and eligibility ='Y'  and ps.course_code=cc.course_code and bc.branch_code= ps.FRM_BRID AND ps.FRM_BRID='".$branch_code."'  group by ps.`SUB_CODE`,ps.FRM_BRID,`Sub_Sem`,Sub_PaperID,`shift`,`aicte_rc`,`full_part_time`,`Regular_Reappear` order by ps.course_code,ps.FRM_BRID,`Sub_Sem`,`Sub_PaperID`,`Regular_Reappear`,`shift`,`aicte_rc`,`full_part_time` ";
+		
+		#echo $sql_strength;
+		
+		$sql_strength_count ="SELECT count(Ed_RollNo) as total_strength   FROM `ptu_subjects` ps WHERE `SUB_TP` = 'T' AND `Ed_Int` = '1' and `received_status`='Y' and eligibility ='Y' AND ps.FRM_BRID='".$branch_code."'  ";
+	}
+	else if($_POST['strength_type']=='Practical_Internal_Strength')
+	{
+		$sql_strength ="SELECT distinct concat(cc.course_name,'(',bc.branch_name,')') as Branch, `Sub_Sem` as Semester,`SUB_CODE`,`SUB_TITLE` as Subject_Title, `shift`,`aicte_rc`,`full_part_time`, count(Ed_RollNo) as Strength,`Regular_Reappear`,SUB_ID   FROM `ptu_subjects` ps,course_code cc,branch_code bc WHERE `SUB_TP` = 'P' AND `Ed_Int` = '1' and `received_status`='Y' and eligibility ='Y'  and ps.course_code=cc.course_code and 
+		bc.branch_code= ps.FRM_BRID AND ps.FRM_BRID='".$branch_code."'  group by ps.FRM_BRID,`Sub_Sem`,`SUB_CODE`,`shift`,`aicte_rc`,`full_part_time`,`Regular_Reappear` order by ps.course_code,ps.FRM_BRID,`Sub_Sem`,`SUB_CODE`,`Regular_Reappear`,`shift`,`aicte_rc`,`full_part_time` ; ";
+		
+		$sql_strength_count ="SELECT count(Ed_RollNo) as total_strength   FROM `ptu_subjects` ps WHERE `SUB_TP` = 'P' AND `Ed_Int` = '1' and `received_status`='Y' and eligibility ='Y' AND ps.FRM_BRID='".$branch_code."'  ";
+	}
+	else if($_POST['strength_type']=='Practical_External_Strength')
+	{
+		$sql_strength = "SELECT distinct concat(cc.course_name,'(',bc.branch_name,')') as Branch, `Sub_Sem` as Semester,`SUB_CODE`,`SUB_TITLE` as Subject_Title, `shift`,`aicte_rc`,`full_part_time`, count(Ed_RollNo) as Strength,`Regular_Reappear`   FROM `ptu_subjects` ps,course_code cc,branch_code bc WHERE `SUB_TP` = 'P' AND `Ed_Ext` = '1' and `received_status`='Y' and eligibility ='Y'  and ps.course_code=cc.course_code and bc.branch_code= ps.FRM_BRID  AND ps.FRM_BRID='".$branch_code."' group by ps.FRM_BRID,`Sub_Sem`,`SUB_CODE`,`shift`,`aicte_rc`,`full_part_time`,`Regular_Reappear` order by ps.course_code,ps.FRM_BRID,`Sub_Sem`,`SUB_CODE`,`Regular_Reappear`,`shift`,`aicte_rc`,`full_part_time`";
+			
+		$sql_strength_count ="SELECT count(Ed_RollNo) as total_strength   FROM `ptu_subjects` ps WHERE `SUB_TP` = 'P' AND `Ed_Ext` = '1' and `received_status`='Y' and eligibility ='Y' AND ps.FRM_BRID='".$branch_code."'  ";
+
+	}
+	#echo $sql_detainee_list;
+	$result_strength_list = mysql_query($sql_strength) or  die(mysql_error());
+	$result_strength_count = mysql_query($sql_strength_count) or  die(mysql_error());
+	$row_strength_count = mysql_fetch_array($result_strength_count);
+	echo "<center><h3>".$_POST['strength_type']." Detail </h3></center>";
+	echo "<table  class='table table-bordered striped table-condensed container' ><tr style='background-color:lightgrey'>
+	<th>Sr. No.</th>
+	<th>Course(Branch)</th> 
+	<th>Sem.
+	<th>Paper ID</th>
+	<th>Subject Code</th>
+	<th>Subject Title</th>
+	<th>Shift</th>
+	<th>AICTE</th>
+	<th>Full / Part Time</th>
+	<th>Strength</th>
+<th>Filled Strength</th>
+	<th>Regular / Reappear</tr>
+	";
+	$x=1;
+	while($row_result = mysql_fetch_array($result_strength_list))
+		{
+			if ($_POST['strength_type']=='Theory_Internal_Strength')
+			{
+				$sql_strength_filled = "SELECT count(sim.university_roll_no) as filled_strength  FROM `student_internal_marks` sim, subject_master sm WHERE 
+				sim.`theory_practical` ='T' AND 
+				sim.internal_external='I' and  
+				sim.`internal_lock_status`='1' and 
+				sm.`internal_attendance_status`='1' and 
+				sm.`internal_lock_status`='1' 
+				and sm.`theory_practical` = 'T' and 
+				sim.branch_code='".$branch_code."' AND
+				sim.subject_master_id = '".$row_result['SUB_ID']."' AND
+				sm.subject_master_id = '".$row_result['SUB_ID']."' AND
+				sim.paper_id='".$row_result['Paper_ID']."' AND
+				sim.subject_code='".$row_result['SUB_CODE']."' AND
+				sim.shift='".$row_result['shift']."' AND
+				sim.aicte_rc='".$row_result['aicte_rc']."' AND
+				sim.full_part_time='".$row_result['full_part_time']."' AND
+				sim.regular_reappear ='".$row_result['Regular_Reappear']."' ;
+				";
+				#echo $sql_strength_filled.  ".$x<br />";
+				
+				$sql_strength_filled_count = "SELECT count(sim.university_roll_no) as filled_strength_count  FROM `student_internal_marks` sim, subject_master sm WHERE 
+				sim.`theory_practical` ='T' AND 
+				sim.internal_external='I' and  
+				sim.`internal_lock_status`='1' and 
+				sm.`internal_attendance_status`='1' and 
+				sm.`internal_lock_status`='1' 
+				and sm.`theory_practical` = 'T' and 
+				sm.`theory_practical` = sim.`theory_practical` AND
+				sm.course_code=sim.course_code 	and sm.branch_code= sim.branch_code and  sm.`semester`=sim.semester and sm.paper_id = sim.paper_id and sm.subject_code =  sim.subject_code and sm.shift = sim.shift and sm.aicte_rc = sim.aicte_rc and sm.full_part_time= sim.full_part_time and sm.regular_reappear= sim.regular_reappear and 
+				sim.branch_code='".$branch_code."' ;";
+				#echo $sql_strength_filled_count."<br />";
+				#SELECT count(sim.university_roll_no) as filled_strength_count FROM `student_internal_marks` sim, subject_master sm WHERE sim.`theory_practical` ='T' AND sim.internal_external='I' and sim.`internal_lock_status`='1' and sm.`internal_attendance_status`='1' and sm.`internal_lock_status`='1' and sm.`theory_practical` = 'T'   and sim.branch_code='31' AND sm.`subject_master_id`=sim.`subject_master_id`
+				
+				#SELECT count(sim.university_roll_no) as filled_strength_count FROM `student_internal_marks` sim WHERE sim.`theory_practical` ='T' AND sim.internal_external='I' and sim.`internal_lock_status`='1' and sim.branch_code='31'
+			}
+			else if($_POST['strength_type']=='Practical_Internal_Strength')
+			{
+				$sql_strength_filled = "SELECT  count(sim.university_roll_no) as filled_strength  FROM `student_internal_marks` sim, subject_master sm WHERE sim.`theory_practical` = 'P' AND sim.internal_external='I'  and sm.`internal_attendance_status`=1 and sm.`internal_lock_status`=1 AND sim.`internal_lock_status`=1 and sm.`theory_practical` = 'P'  and
+				sim.branch_code='".$branch_code."' AND
+				sim.subject_master_id = '".$row_result['SUB_ID']."' AND
+				sm.subject_master_id = '".$row_result['SUB_ID']."' AND
+				sim.subject_code='".$row_result['SUB_CODE']."' AND
+				sim.shift='".$row_result['shift']."' AND
+				sim.aicte_rc='".$row_result['aicte_rc']."' AND
+				sim.full_part_time='".$row_result['full_part_time']."' AND
+				sim.regular_reappear ='".$row_result['Regular_Reappear']."'   ";
+				
+				#echo $sql_strength_filled. "$x <br>";
+				
+				$sql_strength_filled_count = "SELECT  count(sim.university_roll_no) as filled_strength_count  FROM `student_internal_marks` sim, subject_master sm WHERE sim.`theory_practical` = 'P' AND sim.internal_external='I' and  sim.`internal_lock_status`=1 and sm.`internal_attendance_status`=1 and sm.`internal_lock_status`=1  and sm.`theory_practical` = 'P' and 
+				sm.course_code=sim.course_code and sm.branch_code= sim.branch_code and  sm.`semester`=sim.semester
+				and sm.paper_id = sim.paper_id and sm.subject_code =  sim. subject_code and sm.shift = sim.shift and
+				 sm.aicte_rc = sim.aicte_rc and sm.full_part_time= sim.full_part_time and sm.regular_reappear= sim.regular_reappear  and sm.`theory_practical` = sim.`theory_practical` and
+				sim.branch_code='".$branch_code."'  ;";
+				
+	
+			}
+			else if($_POST['strength_type']=='Practical_External_Strength')
+			{
+				$sql_strength_filled = " SELECT count(sim.university_roll_no) as filled_strength  FROM `student_internal_marks` sim, subject_master sm WHERE sim.`theory_practical` = 'P' AND sim.internal_external='E' and  sim.`external_lock_status`=1 and sm.`external_attendance_status`=1 and sm.`external_lock_status`=1 and sm.`theory_practical` = 'P' and sm.`theory_practical` = sim.`theory_practical` AND
+				sm.course_code=sim.course_code and sm.branch_code= sim.branch_code and  sm.`semester`=sim.semester
+				and sm.subject_code =  sim. subject_code and sm.shift = sim.shift and
+				 sm.aicte_rc = sim.aicte_rc and sm.full_part_time= sim.full_part_time and sm.regular_reappear= sim.regular_reappear AND
+				 sim.branch_code='".$branch_code."' AND
+				sim.subject_code='".$row_result['SUB_CODE']."' AND
+				sim.shift='".$row_result['shift']."' AND
+				sim.aicte_rc='".$row_result['aicte_rc']."' AND
+				sim.full_part_time='".$row_result['full_part_time']."' AND
+				sim.regular_reappear ='".$row_result['Regular_Reappear']."' ; ";
+				
+				$sql_strength_filled_count = "SELECT count(sim.university_roll_no) as filled_strength_count  FROM `student_internal_marks` sim, subject_master sm WHERE sim.`theory_practical` = 'P' AND sim.internal_external='E' and  sim.`external_lock_status`=1 and sm.`external_attendance_status`=1 and sm.`external_lock_status`=1 and sm.`theory_practical` = 'P' and sm.`theory_practical` = sim.`theory_practical` AND
+				sm.course_code=sim.course_code and sm.branch_code= sim.branch_code and  sm.`semester`=sim.semester
+				and sm.subject_code =  sim. subject_code and sm.shift = sim.shift and
+				 sm.aicte_rc = sim.aicte_rc and sm.full_part_time= sim.full_part_time and sm.regular_reappear= sim.regular_reappear AND
+				 sim.branch_code='".$branch_code."' ;";
+	
+			}
+					
+			$result_strength_filled = mysql_query($sql_strength_filled) or  die(mysql_error());
+			$row_strength_filled = mysql_fetch_array($result_strength_filled);
+			$result_strength_filled_count = mysql_query($sql_strength_filled_count) or  die(mysql_error());
+			$row_strength_filled_count = mysql_fetch_array($result_strength_filled_count);
+			echo "<tr><td>$x</td>
+			<td>".$row_result['Branch']."</td>
+			<td>".$row_result['Semester']."</td>
+			<td>".$row_result['Paper_ID']."</td>
+			<td>".$row_result['SUB_CODE']."</td>
+			<td>".$row_result['Subject_Title']."</td>
+			<td>".$row_result['shift']."</td>
+			<td>".$row_result['aicte_rc']."</td>
+			<td>".$row_result['full_part_time']."</td>
+			<td>".$row_result['Strength']."</td>
+			<td>".$row_strength_filled['filled_strength']."</td>
+			<td>".$row_result['Regular_Reappear']."</td>
+			</tr>";
+			$x++;
+		}
+		echo "<tr><td><td><td><td><td><td><td><td><td>Total<td>".$row_strength_count['total_strength']."<td>".$row_strength_filled_count['filled_strength_count']."<td></tr>";
+
+}
+else if($_SESSION['usertype']=='coe')
+	{
+		$sql_course = "SELECT distinct course_name,course_code from course_code";
+		$result_course = mysql_query($sql_course) or  die(mysql_error()) ;
+		echo "  <form id='profile' name='profile' action=''  method='post'>";
+		echo " <table align='center'><tr><td>Course </td> <td><select name='course_code' >";
+		while ($row_course = mysql_fetch_array($result_course))
+		{		
+		echo "<option value='".$row_course['course_code']."'>".$row_course['course_name']."</option>";
+		}	
+		echo "</select></td>";
+		$sql_branch = "SELECT distinct branch_name from branch_code ;";
+		$result_branch = mysql_query($sql_branch);
+		echo "<tr><td> Select Branch </td><td> 
+		<select name='Branch_Name' class='required'>";
+		while ($row_branch = mysql_fetch_array($result_branch))
+		{		
+			$branch_code=$row_branch['branch_code'];
+			$branch_name=$row_branch['branch_name'];
+			echo "<option value='$branch_name'>$branch_name</option>";
+		}	
+		echo "</select></td><tr>";
+		echo "<tr><td>Strength Type </td><td> 
+		<select name='strength_type' class='required'>";
+		echo "<option value='Theory_Internal_Strength'>Theory Internal Strength</option>
+		<option value='Practical_Internal_Strength'>Practical Internal Strength</option>
+		<option value='Practical_External_Strength'>Practical External Strength</option>";
+		echo "</select></td></tr>
+		<tr><td></td><td>	
+		<input type='hidden' name='internal_external_strength_show' value='internal_external_strength_show' /> 
+		<input type='submit' name='submit' class='btn btn-danger' value='Submit'></form></td></tr></table>";
+	}
+else
+	{	
+		$user=$_SESSION['username'];
+		$sql_user = "SELECT * from users where username ='$user';";
+		$result_user = mysql_query($sql_user);
+		$row_user = mysql_fetch_array($result_user);
+		$users_id=$row_user['users_id'];
+		$sql_branch = "SELECT * from branch_code where users_id ='$users_id';";
+		#echo $sql_branch;
+		$result_branch = mysql_query($sql_branch);
+		echo "  <form id='profile' name='profile' action=''  method='post'>";
+		echo " <table align='center'><tr><td> Select Branch </td><td> 
+		<select name='Branch_Name' class='required'>";
+		while ($row_branch = mysql_fetch_array($result_branch))
+		{		
+			$branch_code=$row_branch['branch_code'];
+			$branch_name=$row_branch['branch_name'];
+			echo "<option value='$branch_code'>$branch_name</option>";
+		}	
+		echo "</select></td><tr>";
+		echo "<tr><td>Strength Type </td><td> 
+		<select name='strength_type' class='required'>";
+		echo "<option value='Theory_Internal_Strength'>Theory Internal Strength</option>
+		<option value='Practical_Internal_Strength'>Practical Internal Strength</option>
+		<option value='Practical_External_Strength'>Practical External Strength</option>";
+		echo "</select></td></tr>
+		<tr><td></td><td>	
+		<input type='hidden' name='internal_external_strength_show' value='internal_external_strength_show' /> 
+		<input type='submit' name='submit' class='btn btn-danger' value='Submit'></form></td></tr></table>";
+	}
+?>

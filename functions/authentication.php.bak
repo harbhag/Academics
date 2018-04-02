@@ -1,0 +1,98 @@
+<?php
+function ldap_auth($user,$password){
+
+   //Data needed to connect to ldap server
+  $server = "ldap.gndec.ac.in";
+  #$server = "202.164.53.100";
+  $dn = "ou=people,dc=example,dc=com";
+
+  error_reporting(0);
+  ldap_connect($server);
+  $con = ldap_connect($server);
+  ldap_set_option($con, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+  // Bind user using the username password given
+  $user_search = ldap_search($con,$dn,"(|(uid=$user)(mail=$user))");
+  $user_get = ldap_get_entries($con, $user_search);
+  $user_entry = ldap_first_entry($con, $user_search);
+  $user_dn = ldap_get_dn($con, $user_entry);
+  $user_id = $user_get[0]["uid"][0];
+  $group_id = $user_get[0]["gidnumber"][0];
+
+
+  //Check whether the user is authenticated one or not
+  if (ldap_bind($con, $user_dn, $password) === false) {
+    session_destroy();
+    return 'LOGIN_FAIL';
+  }
+  else {
+		$login = fetch_resource_db('users',array('username'),array($user),'resource_array','');
+		$_SESSION['username'] = $user;
+		$_SESSION['password'] = $password;
+		$_SESSION['ucentre'] = $login['ucentre'];
+		$_SESSION['usession'] = $login['usession'];
+		$_SESSION['location'] = $login['location'];
+		return 'LOGIN_SUCCESS';
+	}
+}
+
+function get_usertype($username) {
+	$usertype_sql = mysql_query("SELECT usertype,name FROM users WHERE username='".$username."'") or die(mysql_error());
+	if(mysql_num_rows($usertype_sql)==0) {
+		$student_sql = mysql_query("SELECT student_info_id,CONCAT(sfname,' ',smname,' ',ssname) AS student_name FROM student_info WHERE college_roll_no='".$username."'") or die(mysql_error());
+		if(mysql_num_rows($student_sql)==1) {
+			
+			$data = mysql_fetch_assoc($student_sql);
+			$_SESSION['fullname'] = $data['student_name'];
+			return 'student';
+		}
+		else {
+			return 'USERTYPE_NOT_FOUND';
+		}
+	}
+	else {
+		$usertype = mysql_fetch_assoc($usertype_sql);
+		$_SESSION['fullname'] = $usertype['name'];
+		return $usertype['usertype'];
+	}
+}
+
+
+function generate_secure_code() {
+	
+	$alphabets = array('a','b','c','d','e','f','g','h','i','j','k','m','n','p','q',
+	'r','s','t','u','v','w','x','y','z');
+	for($i=0;$i<=2;$i++) {
+		$rand_no[] = rand(2,9);
+    $rand_al[] = $alphabets[rand(0,24)];
+	}
+	$secure_code = $rand_al[0].$rand_no[0].$rand_al[1].$rand_no[1].$rand_al[2].$rand_no[2];
+	
+	mysql_query("UPDATE users SET secure_code='".$secure_code."' WHERE username = '".$_SESSION['username']."'") or die(mysql_error());
+	
+	$sql = mysql_query("SELECT email FROM users WHERE username = '".$_SESSION['username']."'") or die(mysql_error());
+	$email = mysql_fetch_assoc($sql);
+	
+	$to = $email['email'];
+        $subject = "GNDEC 2-Way Authentication Secret Code";
+        $body = "Your Secret Code for 2-Way Authentication is = ".$secure_code." . This code is case sensitive";
+        $headers = "From: Exam Automation<examautomation@gndec.ac.in>";
+
+        mail($to,$subject,$body,$headers);
+	
+	return $secure_code;
+	
+}
+
+function _2_way_auth() {
+	
+	$sql = mysql_query("SELECT * FROM users WHERE secure_code = '".$_POST['secure_code']."' AND username='".$_SESSION['username']."'") or die(mysql_error());
+	if(mysql_num_rows($sql)!=1) {
+		return 'Failure';
+		}
+	if(mysql_num_rows($sql)==1) {
+		return 'Success';
+		}
+	
+}
+?>
